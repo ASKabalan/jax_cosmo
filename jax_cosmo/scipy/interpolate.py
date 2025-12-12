@@ -1,9 +1,5 @@
 # This module contains some missing ops from jax
-import functools
-import os
-
 import jax.numpy as np
-from jax import lax, vmap
 from jax.numpy import array, concatenate, ones, zeros
 from jax.tree_util import register_pytree_node_class
 
@@ -11,61 +7,23 @@ __all__ = ["interp"]
 
 
 def interp(x, xp, fp):
-    """Linear interpolation that handles both increasing and decreasing xp.
+    """Linear interpolation using jnp.interp.
 
-    Set JC_INTERP=0 to use the new jnp.interp-based implementation.
-    Set JC_INTERP=1 (default) to use the old vmap-based implementation.
+    Parameters
+    ----------
+    x : array_like
+        The x-coordinates at which to evaluate the interpolated values.
+    xp : 1-D array
+        The x-coordinates of the data points, must be increasing.
+    fp : 1-D array
+        The y-coordinates of the data points, same length as xp.
+
+    Returns
+    -------
+    y : ndarray
+        The interpolated values, same shape as x.
     """
-    if os.environ.get("JC_INTERP", "1") == "1":
-        return _old_interp(x, xp, fp)
-    else:
-        return _new_interp(x, xp, fp)
-
-
-def _new_interp(x, xp, fp):
-    """New implementation using jnp.interp with support for decreasing xp."""
-
-    return np.interp(x, xp[::-1], fp[::-1])
-
-    def interp_increasing(args):
-        x, xp, fp = args
-        return np.interp(x, xp, fp)
-
-    def interp_decreasing(args):
-        x, xp, fp = args
-        # Reverse xp and fp to make xp increasing
-        return np.interp(x, xp[::-1], fp[::-1])
-
-    # Check if xp is decreasing (compare first and last elements)
-    is_decreasing = xp[0] > xp[-1]
-
-    return lax.cond(is_decreasing, interp_decreasing, interp_increasing, (x, xp, fp))
-
-
-@functools.partial(vmap, in_axes=(0, None, None))
-def _old_interp(x, xp, fp):
-    """
-    Simple equivalent of np.interp that compute a linear interpolation.
-
-    We are not doing any checks, so make sure your query points are lying
-    inside the array.
-
-    x, xp, fp need to be 1d arrays
-    """
-    # First we find the nearest neighbour
-    ind = np.argmin((x - xp) ** 2)
-
-    # Perform linear interpolation
-    ind = np.clip(ind, 1, len(xp) - 2)
-
-    xi = xp[ind]
-    # Figure out if we are on the right or the left of nearest
-    s = np.sign(np.clip(x, xp[1], xp[-2]) - xi).astype(np.int64)
-    a = (fp[ind + np.copysign(1, s).astype(np.int64)] - fp[ind]) / (
-        xp[ind + np.copysign(1, s).astype(np.int64)] - xp[ind]
-    )
-    b = fp[ind] - a * xp[ind]
-    return a * x + b
+    return np.interp(x, xp, fp)
 
 
 @register_pytree_node_class

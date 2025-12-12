@@ -264,7 +264,8 @@ def a_of_chi(cosmo, chi):
         radial_comoving_distance(cosmo, 1.0)
     cache = cosmo._workspace["background.radial_comoving_distance"]
     chi = np.atleast_1d(chi)
-    return interp(chi, cache["chi"], cache["a"])
+    # Reverse xp and fp for interpolation
+    return interp(chi, cache["chi"][::-1], cache["a"][::-1])
 
 
 def dchioverda(cosmo, a):
