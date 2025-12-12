@@ -1,6 +1,6 @@
 # This module contains some missing ops from jax
-import os
 import functools
+import os
 
 import jax.numpy as np
 from jax import lax, vmap
@@ -26,6 +26,7 @@ def _new_interp(x, xp, fp):
     """New implementation using jnp.interp with support for decreasing xp."""
 
     return np.interp(x, xp[::-1], fp[::-1])
+
     def interp_increasing(args):
         x, xp, fp = args
         return np.interp(x, xp, fp)
@@ -65,7 +66,6 @@ def _old_interp(x, xp, fp):
     )
     b = fp[ind] - a * xp[ind]
     return a * x + b
-
 
 
 @register_pytree_node_class
