@@ -67,6 +67,7 @@ def _old_interp(x, xp, fp):
     return a * x + b
 
 
+
 @register_pytree_node_class
 class InterpolatedUnivariateSpline(object):
     def __init__(self, x, y, k=3, endpoints="not-a-knot", coefficients=None):
