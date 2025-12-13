@@ -1,29 +1,50 @@
 # This module contains some missing ops from jax
+import functools
+import os
+
 import jax.numpy as np
+from jax import lax, vmap
 from jax.numpy import array, concatenate, ones, zeros
 from jax.tree_util import register_pytree_node_class
 
 __all__ = ["interp"]
 
 
-def interp(x, xp, fp):
-    """Linear interpolation using jnp.interp.
+# Aliasing interp to jnp interp
+# This implentation is more efficient than the old one below
+# and also naturally supports batching and broadcasting
+# This allows us to avoid flattening multi-dimensional arrays which might not always be possible
+# in case we have an array with over 2³¹ elements
+# However, this implementation assumes that the x points are sorted
+# This was done in background.py and power.py
+# for for external calls to interp this might be a breaking change
+# We keep the old implementation here for reference and possible future use
+interp = np.interp
 
-    Parameters
-    ----------
-    x : array_like
-        The x-coordinates at which to evaluate the interpolated values.
-    xp : 1-D array
-        The x-coordinates of the data points, must be increasing.
-    fp : 1-D array
-        The y-coordinates of the data points, same length as xp.
-
-    Returns
-    -------
-    y : ndarray
-        The interpolated values, same shape as x.
+@functools.partial(vmap, in_axes=(0, None, None))
+def _old_interp(x, xp, fp):
     """
-    return np.interp(x, xp, fp)
+    Simple equivalent of np.interp that compute a linear interpolation.
+
+    We are not doing any checks, so make sure your query points are lying
+    inside the array.
+
+    x, xp, fp need to be 1d arrays
+    """
+    # First we find the nearest neighbour
+    ind = np.argmin((x - xp) ** 2)
+
+    # Perform linear interpolation
+    ind = np.clip(ind, 1, len(xp) - 2)
+
+    xi = xp[ind]
+    # Figure out if we are on the right or the left of nearest
+    s = np.sign(np.clip(x, xp[1], xp[-2]) - xi).astype(np.int64)
+    a = (fp[ind + np.copysign(1, s).astype(np.int64)] - fp[ind]) / (
+        xp[ind + np.copysign(1, s).astype(np.int64)] - xp[ind]
+    )
+    b = fp[ind] - a * xp[ind]
+    return a * x + b
 
 
 @register_pytree_node_class
