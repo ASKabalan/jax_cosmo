@@ -21,6 +21,7 @@ __all__ = ["interp"]
 # We keep the old implementation here for reference and possible future use
 interp = np.interp
 
+
 @functools.partial(vmap, in_axes=(0, None, None))
 def _old_interp(x, xp, fp):
     """
