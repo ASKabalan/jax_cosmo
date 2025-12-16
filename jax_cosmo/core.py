@@ -10,7 +10,19 @@ __all__ = ["Cosmology"]
 
 @register_pytree_node_class
 class Cosmology:
-    def __init__(self, Omega_c, Omega_b, h, n_s, sigma8, Omega_k, w0, wa, Omega_nu=0.0, gamma=None):
+    def __init__(
+        self,
+        Omega_c,
+        Omega_b,
+        h,
+        n_s,
+        sigma8,
+        Omega_k,
+        w0,
+        wa,
+        Omega_nu=0.0,
+        gamma=None,
+    ):
         r"""
         Cosmology object, stores primary and derived cosmological parameters.
 
@@ -111,7 +123,7 @@ class Cosmology:
             self._Omega_k,
             self._w0,
             self._wa,
-            self._Omega_nu, 
+            self._Omega_nu,
         )
 
         if self._flags["gamma_growth"]:
@@ -160,7 +172,7 @@ class Cosmology:
     @property
     def Omega_c(self):
         return self._Omega_c
-        
+
     @property
     def Omega_nu(self):
         return self._Omega_nu

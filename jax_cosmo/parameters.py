@@ -1,7 +1,7 @@
 # This module defines a few default cosmologies
 from functools import partial
-import jax_cosmo as jc # Assuming jc is imported as in your snippet
 
+import jax_cosmo as jc  # Assuming jc is imported as in your snippet
 from jax_cosmo.core import Cosmology
 
 # To add new cosmologies, we just set the parameters to some default values using
