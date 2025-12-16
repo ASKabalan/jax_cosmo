@@ -111,7 +111,7 @@ class Cosmology:
             self._Omega_k,
             self._w0,
             self._wa,
-            self._Omega_n, 
+            self._Omega_nu, 
         )
 
         if self._flags["gamma_growth"]:
