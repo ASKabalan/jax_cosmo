@@ -155,13 +155,16 @@ def caching(arg_name, max_entries=None, max_bytes=None):
                 return tree_util.tree_leaves(res)
 
             result_shape_list = [
-                jax.ShapeDtypeStruct(l.shape, l.dtype) if hasattr(l, "shape") else l for l in result_leaves
+                jax.ShapeDtypeStruct(l.shape, l.dtype) if hasattr(l, "shape") else l
+                for l in result_leaves
             ]
 
             # Use custom_vjp to support differentiation
             @jax.custom_vjp
             def _cached_call(*flat_args):
-                out_flat = jax.pure_callback(_callback, result_shape_list, *flat_args, vmap_method="sequential")
+                out_flat = jax.pure_callback(
+                    _callback, result_shape_list, *flat_args, vmap_method="sequential"
+                )
                 return tuple(out_flat)
 
             def _cached_call_fwd(*flat_args):
