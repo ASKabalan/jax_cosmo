@@ -19,7 +19,6 @@ import jax
 import jax.numpy as jnp
 from jax import tree_util
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -134,7 +133,10 @@ def caching(arg_name, max_entries=None, max_bytes=None):
 
             # Build the result structure for pure_callback
             result_leaves, result_treedef = tree_util.tree_flatten(result_cached)
-            result_shapes = [jax.ShapeDtypeStruct(l.shape, l.dtype) if hasattr(l, "shape") else l for l in result_leaves]
+            result_shapes = [
+                jax.ShapeDtypeStruct(l.shape, l.dtype) if hasattr(l, "shape") else l
+                for l in result_leaves
+            ]
 
             def _callback(*flat_key_arg):
                 key_arg_cb = tree_util.tree_unflatten(treedef, flat_key_arg)
