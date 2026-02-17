@@ -138,7 +138,7 @@ class Cosmology:
     def tree_unflatten(cls, aux_data, children):
         # Retrieve base parameters
         Omega_c, Omega_b, h, n_s, sigma8, Omega_k, w0, wa, Omega_nu = children[:9]
-        children = list(children[9:]).reverse()
+        children = list(reversed(children[9:]))
 
         # We extract the remaining parameters in reverse order from how they
         # were inserted
