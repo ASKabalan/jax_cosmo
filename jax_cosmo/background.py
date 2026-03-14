@@ -1,13 +1,30 @@
 # This module implements various functions for the background COSMOLOGY
+import os
+
 import jax.numpy as np
 from jax import lax
 
 import jax_cosmo.constants as const
 from jax_cosmo.cache import caching
-from jax_cosmo.scipy.interpolate import interp
+from jax_cosmo.scipy.interpolate import InterpolatedUnivariateSpline, interp
 from jax_cosmo.scipy.ode import odeint
 
+# ---------------------------------------------------------------------------
+# Configurable ODE table parameters (env-overridable)
+# ---------------------------------------------------------------------------
+# Number of interpolation points for growth / distance tables.
+# More points → higher interpolation accuracy, negligible cost.
+GROWTH_TABLE_STEPS: int = int(os.environ.get("JAX_COSMO_GROWTH_STEPS", "2048"))
+
+# log10 of the minimum scale factor where the ODE integration starts.
+# Must be negative; fastpm uses -7 by default.
+GROWTH_TABLE_LOG10_AMIN: int = int(os.environ.get("JAX_COSMO_GROWTH_LOG10_AMIN", "-7"))
+
+
+
 __all__ = [
+    "GROWTH_TABLE_STEPS",
+    "GROWTH_TABLE_LOG10_AMIN",
     "w",
     "f_de",
     "Esqr",
@@ -24,6 +41,7 @@ __all__ = [
     "growth_rate_second",
     "_compute_distance_tables",
     "_compute_growth_tables",
+    "_compute_superconft_tables",
 ]
 
 
@@ -207,7 +225,7 @@ def Omega_de_a(cosmo, a):
 
 
 @caching(arg_name="cosmo", max_entries=1000)
-def _compute_distance_tables(cosmo, log10_amin=-3, steps=256):
+def _compute_distance_tables(cosmo, log10_amin=GROWTH_TABLE_LOG10_AMIN, steps=GROWTH_TABLE_STEPS):
     """Compute comoving distance table via ODE integration.
 
     Returns a dict with keys ``"a"`` and ``"chi"``.
@@ -225,7 +243,7 @@ def _compute_distance_tables(cosmo, log10_amin=-3, steps=256):
 
 
 @caching(arg_name="cosmo", max_entries=1000)
-def _compute_growth_tables(cosmo, log10_amin=-3, steps=128):
+def _compute_growth_tables(cosmo, log10_amin=GROWTH_TABLE_LOG10_AMIN, steps=GROWTH_TABLE_STEPS):
     """Compute growth factor tables via ODE integration.
 
     Returns a tuple whose contents depend on ``cosmo._flags["gamma_growth"]``.
@@ -283,34 +301,16 @@ def _compute_growth_tables(cosmo, log10_amin=-3, steps=128):
         return (atab, gtab)
 
 
-def _ensure_background_workspace(cosmo, log10_amin=-3, steps=128):
-    """Backward-compatibility wrapper — populates ``cosmo._workspace``.
-
-    .. deprecated::
-        Use :func:`_compute_distance_tables` and :func:`_compute_growth_tables`
-        directly instead.
-    """
-    dist = _compute_distance_tables(cosmo, log10_amin, steps)
-    cosmo._workspace["background.radial_comoving_distance"] = {
-        "a": dist[0],
-        "chi": dist[1],
-    }
-
-    growth = _compute_growth_tables(cosmo, log10_amin, steps)
-    if not cosmo._flags["gamma_growth"]:
-        atab, gtab, ftab, htab, g2tab, f2tab, h2tab = growth
-        cosmo._workspace["background.growth_factor"] = {
-            "a": atab,
-            "g": gtab,
-            "f": ftab,
-            "h": htab,
-            "g2": g2tab,
-            "f2": f2tab,
-            "h2": h2tab,
-        }
-    else:
-        atab, gtab = growth
-        cosmo._workspace["background.growth_factor"] = {"a": atab, "g": gtab}
+@caching(arg_name="cosmo", max_entries=1000)
+def _compute_superconft_tables(cosmo, log10_amin=GROWTH_TABLE_LOG10_AMIN, steps=GROWTH_TABLE_STEPS):
+    """Superconformal time table: η(a) = -∫[a→1] da'/(E(a')·a'³), normalized η(1)=0."""
+    atab = np.logspace(log10_amin, 0.0, steps)
+    integrand = 1.0 / (np.sqrt(Esqr(cosmo, atab)) * atab**3)
+    da = np.diff(atab)
+    midpoints = (integrand[:-1] + integrand[1:]) / 2
+    superconft = -np.cumsum(np.concatenate([np.zeros(1), (da * midpoints)[::-1]]))[::-1]
+    superconft = superconft - superconft[-1]
+    return (atab, superconft)
 
 
 def radial_comoving_distance(cosmo, a):
