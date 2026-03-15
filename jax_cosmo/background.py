@@ -41,7 +41,6 @@ __all__ = [
     "growth_rate_second",
     "_compute_distance_tables",
     "_compute_growth_tables",
-    "_compute_superconft_tables",
 ]
 
 
@@ -299,18 +298,6 @@ def _compute_growth_tables(cosmo, log10_amin=GROWTH_TABLE_LOG10_AMIN, steps=GROW
         gtab = np.exp(gtab_raw)
         gtab = gtab / gtab[-1]
         return (atab, gtab)
-
-
-@caching(arg_name="cosmo", max_entries=1000)
-def _compute_superconft_tables(cosmo, log10_amin=GROWTH_TABLE_LOG10_AMIN, steps=GROWTH_TABLE_STEPS):
-    """Superconformal time table: η(a) = -∫[a→1] da'/(E(a')·a'³), normalized η(1)=0."""
-    atab = np.logspace(log10_amin, 0.0, steps)
-    integrand = 1.0 / (np.sqrt(Esqr(cosmo, atab)) * atab**3)
-    da = np.diff(atab)
-    midpoints = (integrand[:-1] + integrand[1:]) / 2
-    superconft = -np.cumsum(np.concatenate([np.zeros(1), (da * midpoints)[::-1]]))[::-1]
-    superconft = superconft - superconft[-1]
-    return (atab, superconft)
 
 
 def radial_comoving_distance(cosmo, a):
