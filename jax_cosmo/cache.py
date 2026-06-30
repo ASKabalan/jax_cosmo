@@ -7,10 +7,16 @@ nested JAX transformations (JIT → scan → while_loop → cond).
 
 Forward evaluation goes through ``jax.pure_callback``; the backward pass
 re-invokes the underlying function and differentiates with ``jax.vjp``.
+
+Set the environment variable ``JAX_COSMO_DEACTIVATE_CACHE`` to a truthy value
+(``1``/``true``/``yes``/``on``) before importing ``jax_cosmo`` to disable the
+host-side cache entirely: ``@caching`` then becomes a no-op and the decorated
+ODE solve runs fully in-graph (XLA-compiled, no ``pure_callback``).
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from collections import OrderedDict
 from functools import wraps
@@ -18,6 +24,15 @@ from functools import wraps
 import jax
 import jax.numpy as jnp
 from jax import tree_util
+
+# When truthy, ``caching`` is a no-op and decorated functions run in-graph.
+# Read once at import time, so set it before ``import jax_cosmo``.
+DEACTIVATE_CACHE = os.environ.get("JAX_COSMO_DEACTIVATE_CACHE", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,6 +93,10 @@ def caching(arg_name, max_entries=None, max_bytes=None):
     """
 
     def decorator(fn):
+        if DEACTIVATE_CACHE:
+            # In-graph behaviour: no host cache, the ODE solve is compiled by XLA.
+            return fn
+
         cache: OrderedDict = OrderedDict()
         cache_bytes: list[int] = [0]  # mutable counter in a list
 
